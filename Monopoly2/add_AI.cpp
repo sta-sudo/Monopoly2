@@ -7,6 +7,8 @@
 #include <easyx.h>
 #include <math.h>
 #include <stdarg.h>
+#include<mmsystem.h> /*音乐的库*/
+#pragma comment(lib,"winmm.lib") /*链接起来*/
 //背景大小宏
 #define WIN_width 800
 #define WIN_height 800
@@ -37,6 +39,10 @@ IMAGE character1;
 IMAGE character2;
 IMAGE character3;
 IMAGE character4;
+IMAGE c1ground;
+IMAGE c2ground;
+IMAGE c3ground;
+IMAGE c4ground;
 
 int x_axis[26] = { 75,185,280,370,465,565,675,675,675,675,675,675,675,675,565,465,370,280,185,75,75,75,75,75,75,75 };
 int y_axis[26] = { 58,58,58,58,58,58,58,160,245,325,410,490,575,675,675,675,675,675,675,675,575,490,410,325,245,160 };
@@ -117,6 +123,11 @@ int a_step(IMAGE* photo, int& x, int& y, int target_x, int target_y, int speed, 
 int Move(int i, int before, int step);
 void WriteWord(int x, int y, const char* word, ...);
 void cleartextxy(int x, int y, int width, int height);
+void draw_c1ground(int x, int y);//绘制角色1空地图片
+void draw_c2ground(int x, int y);//绘制角色2空地图片
+void draw_c3ground(int x, int y);//绘制角色3空地图片
+void draw_c4ground(int x, int y);//绘制角色4空地图片
+
 // arrays & numbers
 PlayerStates states[4];
 int map[26][2]; // map[i][0]: 拥有者 (-1:无主) ; map[i][1]: 建筑等级 (0:土地,1:一级,2:二级)
@@ -190,7 +201,8 @@ int main()
     House_init();
     Character_init();
     Timer_Init();
-
+    mciSendStringA(R"(open "res\Richman.mp3" alias music)", nullptr, 0, nullptr);
+    mciSendStringA("play music repeat", nullptr, 0, nullptr);
     //
     // 加上了房子图片的加载
     // 
@@ -219,13 +231,13 @@ int main()
         // 寻找可行动的玩家
         int skipped = 0;
         while (!Judge(current)) {
-            WriteWord(195, 300, "玩家 %d 无法行动（在医院/监狱），跳过\n", current + 1);
+            WriteWord(195, 300, "玩家 %d 无法行动，跳过\n", current + 1);
             Delay_ms(2000);
             cleartextxy(STA, 300, STO, 50);
             current = NextPlayer(current);
             skipped++;
             if (skipped >= num_player) {
-                printf("所有玩家都无法行动，游戏继续等待...\n");
+                printf("所有玩家都无法行动\n");
                 Delay_ms(2000);
                 cleartextxy(STA, 300, STO, 50);
                 break;
@@ -262,7 +274,7 @@ int main()
                 while (getchar() != '\n'); // 清理换行符
 
                 if (choice < 1 || choice > 4) {
-                    WriteWord(195, 300, "无效选择，请输入1-4之间的数字！\n");
+                    WriteWord(195, 300, "请输入1-4之间的数字！\n");
                     continue;
                 }
             }
@@ -282,7 +294,7 @@ int main()
                     Delay_ms(2000);
                 }
                 else {
-                    getchar(); getchar(); // 等待回车
+                    getchar(); // 等待回车
                 }
                 cleartextxy(STA, 200, STO, 400);
                 int dice = Dice();
@@ -303,10 +315,6 @@ int main()
                     cleartextxy(STA, 600, STO, 50);
                 }
 
-
-
-
-
                 // 移动并更新位置
                 WriteWord(195, 300, "你移动到了 %d 号地块\n", newPos);
                 Delay_ms(2000);
@@ -319,14 +327,14 @@ int main()
                 {
                 case 0: // 特殊格
                     if (newPos == 6) {
-                        WriteWord(195, 300, "你住进了医院，将暂停一轮\n");
+                        WriteWord(195, 300, "住进医院，暂停一轮\n");
                         Delay_ms(2000);
                         cleartextxy(STA, 300, STO, 50);
                         states[current].Inhospital = 1;
                         states[current].hospitalCount = 1;
                     }
                     else if (newPos == 19) {
-                        WriteWord(195, 300, "你被关进了监狱，将暂停三轮\n");
+                        WriteWord(195, 300, "被关进监狱，暂停三轮\n");
                         Delay_ms(2000);
                         cleartextxy(STA, 300, STO, 50);
                         states[current].Injail = 1;
@@ -341,7 +349,7 @@ int main()
 
                     break;
                 case 1: // 空地
-                    WriteWord(195, 300, "这是一块空地，价格 %d 元。\n", LAND);
+                    WriteWord(195, 300, "空地，价格 %d 元。\n", LAND);
 
                     if (states[current].money >= LAND) {
                         WriteWord(195, 350, "你是否购买？(1:是 0:否): ");
@@ -377,7 +385,7 @@ int main()
                         {
                             if (map[newPos][1] == 0)
                             {
-                                WriteWord(195, 300, "是否建造一级房子？价格 %d 元 (1:是 0:否): ", HOUSE);
+                                WriteWord(195, 300, "是否建造一级房%d 元 ？(1:是 0:否): ", HOUSE);
                                 int buildChoice;
                                 if (states[current].isAI) {
                                     buildChoice = 1;
@@ -394,7 +402,7 @@ int main()
                             }
                             else if (map[newPos][1] == 1)
                             {
-                                WriteWord(195, 300, "是否升级为二级房子？价格 %d 元 (1:是 0:否): ", BUILDING);
+                                WriteWord(195, 300, "是否升级二级房 %d 元？ (1:是 0:否): ", BUILDING);
                                 int upgradeChoice;
                                 if (states[current].isAI) {
                                     upgradeChoice = 1;
@@ -420,7 +428,7 @@ int main()
                             }
                         }
                         else {
-                            WriteWord(195, 300, "必须从土地开始一级一级升级\n");
+                            WriteWord(195, 300, "必须一级一级升级\n");
 
                         }
 
@@ -966,8 +974,25 @@ void DrawBoardObjects()
             // 有房产：根据等级画房子
             if (map[i][1] == 0)
             {
-                // 只有土地，不画房子（保留底图）
-                clear_house(x_axis[i], y_axis[i]);
+                switch (map[i][0])
+                {
+                case 0: {
+                    draw_c1ground(x_axis[i], y_axis[i]);
+                    break;
+                }
+                case 1: {
+                    draw_c2ground(x_axis[i], y_axis[i]);
+                    break;
+                }
+                case 2: {
+                    draw_c3ground(x_axis[i], y_axis[i]);
+                    break;
+                }
+                case 3: {
+                      draw_c4ground(x_axis[i], y_axis[i]);
+                      break;
+                }
+                }
             }
             else if (map[i][1] == 1)
             {
@@ -1015,6 +1040,12 @@ void House_init()//加载房子图片
     //
     //
     loadimage(&whitebg, "res/whitebg.png", 60, 60);//加载白色背景图片
+    //新增
+	loadimage(&c1ground, "res/c1ground.png", 60, 60);//加载玩家一空地图片
+	loadimage(&c2ground, "res/c2ground.png", 60, 60);//加载玩家二空地图片
+	loadimage(&c3ground, "res/c3ground.png", 60, 60);//加载玩家三空地图片
+	loadimage(&c4ground, "res/c4ground.png", 60, 60);//加载玩家四空地图片
+
 }
 
 void draw_house_one(int x, int y)
@@ -1051,6 +1082,28 @@ void draw_chance(int x, int y)
     putimage(x, y, &whitebg);//清空本格子区域
     putimage(x, y, &imgchance);//建造机会格
 }
+
+void draw_c1ground(int x, int y)
+{
+    putimage(x, y, &whitebg);//清空本格子区域
+    putimage(x, y, &c1ground);//建造玩家一空地
+}
+void draw_c2ground(int x, int y)
+{
+    putimage(x, y, &whitebg);//清空本格子区域
+    putimage(x, y, &c2ground);//建造玩家二空地
+}
+void draw_c3ground(int x, int y)
+{
+    putimage(x, y, &whitebg);//清空本格子区域
+    putimage(x, y, &c3ground);//建造玩家三空地
+}
+void draw_c4ground(int x, int y)
+{
+    putimage(x, y, &whitebg);//清空本格子区域
+    putimage(x, y, &c4ground);//建造玩家四空地
+}
+
 
 void Background_init()//加载背景图片
 {
