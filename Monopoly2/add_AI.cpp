@@ -284,15 +284,28 @@ int main()
                 else {
                     getchar(); getchar(); // 等待回车
                 }
-                cleartextxy(STA, 200, STO, 325);
+                cleartextxy(STA, 200, STO, 400);
                 int dice = Dice();
                 WriteWord(195, 350, "你掷出了 %d 点！\n", dice);
+                FlushBatchDraw();
                 Delay_ms(2000);
-                cleartextxy(STA, 300, STO, 40);
+                cleartextxy(STA, 200, STO, 350);
+                int beforePos = states[current].position;
 
-                Move(current, states[current].position, dice);
-                int newPos = (states[current].position + dice) % 26;
+                // 执行动画移动
+                int newPos = Move(current, beforePos, dice);
                 states[current].position = newPos;
+
+                if ((beforePos + dice) >= 26) {
+                    WriteWord(195, 600, "经过起点, 奖励1000元!\n");
+                    states[current].money += 1000;   //真正加钱
+                    Delay_ms(2000);
+                    cleartextxy(STA, 600, STO, 50);
+                }
+
+
+
+
 
                 // 移动并更新位置
                 WriteWord(195, 300, "你移动到了 %d 号地块\n", newPos);
@@ -325,12 +338,7 @@ int main()
                         cleartextxy(STA, 300, STO, 50);
                         ChanceEvent(current);
                     }
-                    else if (newPos == 0) {
-                        WriteWord(195, 300, "你到达起点，获得1000元\n");
-                        Delay_ms(2000);
-                        cleartextxy(STA, 300, STO, 50);
-                        states[current].money += 1000;
-                    }
+
                     break;
                 case 1: // 空地
                     WriteWord(195, 300, "这是一块空地，价格 %d 元。\n", LAND);
@@ -504,9 +512,8 @@ int main()
                 break;
 
             default:
-                WriteWord(195, 300, "无效选择，请重新输入\n");
-                Delay_ms(2000);
-                cleartextxy(STA, 300, STO, 100);
+                printf("无效选择，请重新输入\n");
+
             }
         } while (choice != 4);
 
@@ -556,12 +563,10 @@ void Timer_Update()
 }
 void Delay_ms(int x)
 {
+    Sleep(x);
+
+
     Timer_Update();
-    if (delta_time * 1000 < x)
-    {
-        Sleep(x - (DWORD)(delta_time * 1000));
-        Timer_Update();
-    }
 
 }
 int Randomint(int range)
@@ -726,16 +731,20 @@ void BuyLand(Player current, int pos)
         states[current].house[states[current].houseCount] = pos;
         states[current].houseCount++;
         WriteWord(195, 600, "购买成功！\n");
+        FlushBatchDraw();
         Delay_ms(2000);
-        cleartextxy(STA, 550, STO, 100);
+
         DrawBoardObjects();
         DrawAllCharacters(-1);
     }
     else {
         WriteWord(195, 600, "金钱不足，购买失败\n");
+        FlushBatchDraw();
         Delay_ms(2000);
-        cleartextxy(STA, 550, STO, 100);
+
+
     }
+    cleartextxy(STA, 550, STO, 100);
 }
 
 void BuildHouse(Player current, int pos)
@@ -1099,10 +1108,18 @@ int Move(int i, int before, int step)
     int idx = 0;
     while (idx < step)
     {
+        int current_pos = (before + idx) % 26;
+        int next_pos = (before + idx + 1) % 26;
         int x = x_axis[(before + idx) % 26];
         int y = y_axis[(before + idx) % 26];
         int target_x = x_axis[(before + idx + 1) % 26];
         int target_y = y_axis[(before + idx + 1) % 26];
+        //判断是否经过起点(位置0)
+        if (current_pos != 0 && next_pos == 0) {
+
+            states[i].money += 1000;
+
+        }
         a_step(photo, x, y, target_x, target_y, 150, i);
         idx++;
     }
