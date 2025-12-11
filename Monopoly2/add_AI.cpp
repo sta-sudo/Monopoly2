@@ -282,7 +282,7 @@ int main()
                     Delay_ms(2000);
                 }
                 else {
-                    getchar(); getchar(); // 等待回车
+                    getchar(); // 等待回车
                 }
                 cleartextxy(STA, 200, STO, 400);
                 int dice = Dice();
@@ -302,10 +302,6 @@ int main()
                     Delay_ms(2000);
                     cleartextxy(STA, 600, STO, 50);
                 }
-
-
-
-
 
                 // 移动并更新位置
                 WriteWord(195, 300, "你移动到了 %d 号地块\n", newPos);
