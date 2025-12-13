@@ -9,6 +9,7 @@
 #include <stdarg.h>
 #include<mmsystem.h> /*音乐的库*/
 #pragma comment(lib,"winmm.lib") /*链接起来*/
+
 //背景大小宏
 #define WIN_width 800
 #define WIN_height 800
@@ -24,13 +25,10 @@
 float delta_time = 0.0f;
 static clock_t last_time;
 
-
-
-
 //图片引用申明
 IMAGE imgbg;//定义一个图片变量
-IMAGE imghouse_one;//定义一个图片变量
-IMAGE imghouse_two;//定义一个图片变量
+IMAGE imghouse_one;
+IMAGE imghouse_two;
 IMAGE imgjail;
 IMAGE imghospital;
 IMAGE whitebg;//定义一个白色背景图片变量
@@ -44,21 +42,18 @@ IMAGE c2ground;
 IMAGE c3ground;
 IMAGE c4ground;
 
-int x_axis[26] = { 75,185,280,370,465,565,675,675,675,675,675,675,675,675,565,465,370,280,185,75,75,75,75,75,75,75 };
-int y_axis[26] = { 58,58,58,58,58,58,58,160,245,325,410,490,575,675,675,675,675,675,675,675,575,490,410,325,245,160 };
-
-
 // consts
 const int LAND = 1000;
 const int HOUSE = 1000;
 const int BUILDING = 2000;
-const int RENT1 = 200;
-const int RENT2 = 500;
+const int RENT0 = 200;
+const int RENT1 = 500;
+const int RENT2 = 900;
 const char* chance[5] =
 { "买彩票中奖 +1000元", "赌博失败 -2000元", "无事发生",
  "你今天开心 给各玩家500元", "你今天过生日 各玩家给你500元" };
-
-
+const int x_axis[26] = { 75,185,280,370,465,565,675,675,675,675,675,675,675,675,565,465,370,280,185,75,75,75,75,75,75,75 };
+const int y_axis[26] = { 58,58,58,58,58,58,58,160,245,325,410,490,575,675,675,675,675,675,675,675,575,490,410,325,245,160 };
 
 // structs
 typedef enum
@@ -83,15 +78,15 @@ typedef struct
     int isAI; // AI 标志（新增）
 } PlayerStates;
 
-
-
-
 // functions declaration
-void Timer_Init();
+void Init();
+void Timer_init();
 void Timer_Update();
 void Delay_ms(int x);
 int Randomint(int range);
 int Dice();
+void Bankruptcy(Player current);
+void ClearPlayer(Player current);
 int Judge(Player now);
 Player NextPlayer(Player current);
 int Move(int i, int before, int step);
@@ -103,13 +98,16 @@ void PayRent(Player current, int pos, int level);
 int SellHouse(Player player);
 void ShowStatus(Player player);
 void ShowMap();
+void ShowMoney();
 int CanUpgrade(int pos);
 void Pause();
 void House_init();//加载房子图片
+void Map_init();
 void draw_house_one(int x, int y);//绘制低级房子
 void draw_house_two(int x, int y);//绘制高级房子
 void DrawBoardObjects();
 void DrawAllCharacters(int exclusion);
+void Player_init();
 void Background_init();//加载背景图片
 void update_background();//更新背景图片
 void draw_jail(int x, int y);//绘制监狱图片
@@ -145,7 +143,6 @@ int main()
     printf("请选择(1-2): ");
     int seedChoice;
     scanf("%d", &seedChoice);
-
     if (seedChoice == 2) {
         srand(12345);  // 固定种子，方便调试
         useFixedSeed = 1;
@@ -154,79 +151,29 @@ int main()
         srand((unsigned)time(NULL)); // 随机种子
     }
 
-    // 输入玩家数量（2-4人）
+    // 输入玩家数量（1-4人）
     do {
-        printf("请输入玩家数量(2-4): ");
+        printf("请输入玩家数量(1-4): ");
         scanf("%d", &num_player);
-        if (num_player < 2 || num_player > 4) {
-            printf("玩家数量必须在2到4之间！\n");
+        if (num_player < 1 || num_player > 4) {
+            printf("玩家数量必须在1到4之间！\n");
         }
-    } while (num_player < 2 || num_player > 4);
-
-    // 初始化玩家状态
-    for (int i = 0; i < 4; i++) {
-        // 默认把真实玩家标记为 Ingame = 1，超出索引的槽位先设为 0
-        states[i].Ingame = (i < num_player) ? 1 : 0;
-        states[i].Injail = 0;
-        states[i].Inhospital = 0;
-        states[i].money = 5000; // 初始资金调整为5000
-        states[i].position = 0;
-        states[i].jailCount = 0;
-        states[i].hospitalCount = 0;
-        states[i].houseCount = 0;
-        states[i].isAI = 0; // 先清 0
-        for (int j = 0; j < 22; j++) states[i].house[j] = -1;
-    }
-
-    // AI 初始化：若 num_player < 4，则用 AI 补位
-    if (num_player != 4)
-    {
-        for (int i = 0; i < num_player; i++) states[i].isAI = 0;
-        for (int i = num_player; i < 4; i++) {
-            states[i].isAI = 1;
-            states[i].Ingame = 1; // AI 补位后也设为在场
-        }
-    }
-    else {
-        for (int i = 0; i < 4; i++) states[i].isAI = 0;
-    }
-
-    // 初始化地图
-    for (int i = 0; i < 26; i++) {
-        map[i][0] = -1;
-        map[i][1] = 0;
-    }
-    Background_init();
-    update_background();
-    House_init();
-    Character_init();
-    Timer_Init();
-    mciSendStringA(R"(open "res\Richman.mp3" alias music)", nullptr, 0, nullptr);
-    mciSendStringA("play music repeat", nullptr, 0, nullptr);
-    //
-    // 加上了房子图片的加载
-    // 
-    // 标记特殊地块（不能购买）
-    // 0:起点, 6:医院, 13:机会, 19:监狱
-    map[0][0] = -2;  // -2表示特殊地块
-    map[6][0] = -2;
-    map[13][0] = -2;
-    map[19][0] = -2;
-    draw_hospital(x_axis[6], y_axis[6]);//绘制医院图片
-    draw_jail(x_axis[19], y_axis[19]);//绘制监狱图片
-    draw_chance(x_axis[13], y_axis[13]);//绘制机会图片
-    DrawAllCharacters(-1);
+    } while (num_player < 1 || num_player > 4);
+   
+    // 初始化
+    Init();
     Player current = PLAYER_1;
     WriteWord(195, 195, "\n===== 游戏开始！ =====\n");
     Delay_ms(2000);
     cleartextxy(STA, 195, STO, 50);
+
+    // 主循环体
     while (flag)
     {
         game_round++;
         WriteWord(195, 195, "\n===== 第 %d 轮 =====\n", game_round);
-
-        // 显示当前地图状态
-        ShowMap();
+        ShowMap(); // 显示当前地图状态
+        ShowMoney(); // 显示当前玩家财富状态
 
         // 寻找可行动的玩家
         int skipped = 0;
@@ -243,7 +190,6 @@ int main()
                 break;
             }
         }
-
         if (!Judge(current)) {
             current = NextPlayer(current);
             continue;
@@ -263,8 +209,7 @@ int main()
             WriteWord(195, R5, "3. 查看地图\n");
             WriteWord(195, R6, "4. 结束回合\n");
             WriteWord(195, R7, "请选择(1-4): ");
-
-            // 若为 AI 自动选择 1
+            
             if (!states[current].isAI) {
                 if (scanf("%d", &choice) != 1) {
                     WriteWord(195, 300, "请输入有效数字！\n");
@@ -279,7 +224,7 @@ int main()
                 }
             }
             else {
-                choice = 1;
+                choice = 1; // 若为 AI 自动选择 1
                 WriteWord(195, 300, "%d\n", choice);
                 Delay_ms(1000);
                 cleartextxy(STA, 300, STO, 50);
@@ -289,7 +234,6 @@ int main()
             case 1: {
                 // 掷骰子
                 WriteWord(195, 550, "按Enter键掷骰子...");
-
                 if (states[current].isAI) {
                     Delay_ms(2000);
                 }
@@ -304,23 +248,32 @@ int main()
                 cleartextxy(STA, 200, STO, 350);
                 int beforePos = states[current].position;
 
-                // 执行动画移动
-                int newPos = Move(current, beforePos, dice);
-                states[current].position = newPos;
-
-                if ((beforePos + dice) >= 26) {
-                    WriteWord(195, 600, "经过起点, 奖励1000元!\n");
-                    states[current].money += 1000;   //真正加钱
+                if ((beforePos + dice) >= 26) //起点奖励
+                { 
+                    if ((beforePos + dice) == 26)
+                    {
+                        WriteWord(195, 600, "到达起点, 奖励2000元!\n");
+                        states[current].money += 2000;   //真正加钱
+                    }
+                    else
+                    {
+                        WriteWord(195, 600, "经过起点, 奖励1000元!\n");
+                        states[current].money += 1000;   //真正加钱
+                    }
                     Delay_ms(2000);
                     cleartextxy(STA, 600, STO, 50);
                 }
+
+                // 执行动画移动
+                int newPos = Move(current, beforePos, dice);
+                states[current].position = newPos;
 
                 // 移动并更新位置
                 WriteWord(195, 300, "你移动到了 %d 号地块\n", newPos);
                 Delay_ms(2000);
                 cleartextxy(STA, 300, STO, 50);
-                // 处理地块事件
 
+                // 处理地块事件
                 int areaType;
                 areaType = SpecialArea(newPos);
                 switch (areaType)
@@ -363,19 +316,17 @@ int main()
                         else {
                             scanf("%d", &buyChoice);
                         }
-
                         if (buyChoice == 1) {
                             BuyLand(current, newPos);
                         }
                     }
                     else {
                         WriteWord(195, 400, "你的金钱不足，无法购买\n");
-
                     }
                     Delay_ms(2000);
                     cleartextxy(STA, 300, STO, 150);
-
                     break;
+
                 case 2: // 土地或一级房子
                     if (map[newPos][0] == current) {
                         WriteWord(195, 300, "这是你自己的地块。\n");
@@ -429,25 +380,30 @@ int main()
                         }
                         else {
                             WriteWord(195, 300, "必须一级一级升级\n");
-
                         }
-
                     }
                     else {
                         int owner = map[newPos][0];
-                        WriteWord(195, 300, "玩家 %d 的地块，支付 %d 元\n", owner + 1, RENT1);
-                        PayRent(current, newPos, 1);
+                        if (!map[newPos][1]) {
+                            WriteWord(195, 300, "玩家 %d 的地块，支付 %d 元\n", owner + 1, RENT0);
+                            PayRent(current, newPos, 0);
+                        }
+                        else {
+                            WriteWord(195, 300, "玩家 %d 的一级房，支付 %d 元\n", owner + 1, RENT1);
+                            PayRent(current, newPos, 1);
+                        }
                     }
                     Delay_ms(2000);
                     cleartextxy(STA, 300, STO, 100);
                     break;
+
                 case 3: // 二级房子
                     if (map[newPos][0] == current) {
                         WriteWord(195, 300, "这是你自己的二级房子\n");
                     }
                     else {
                         int owner = map[newPos][0];
-                        WriteWord(195, 300, "玩家 %d 二级房，支付 %d 元\n", owner + 1, RENT2);
+                        WriteWord(195, 300, "玩家 %d 的二级房，支付 %d 元\n", owner + 1, RENT2);
                         PayRent(current, newPos, 2);
                     }
                     Delay_ms(2000);
@@ -457,54 +413,15 @@ int main()
                 // 检查玩家是否破产
                 if (states[current].money < 0) {
                     WriteWord(195, 300, "玩家 %d 资金为负！请变卖房产偿还债务\n", current + 1);
-                    while (states[current].money < 0 && states[current].houseCount > 0) {
-                        WriteWord(195, 350, "当前债务: %d 元\n", -states[current].money);
-                        int soldPos = SellHouse(current);
-                        if (soldPos == -1) {
-                            break; // 用户取消卖房
-                        }
-
-                        // 从玩家房产列表中移除
-                        for (int i = 0; i < states[current].houseCount; i++) {
-                            if (states[current].house[i] == soldPos) {
-                                // 移动后面的元素覆盖当前位置
-                                for (int j = i; j < states[current].houseCount - 1; j++) {
-                                    states[current].house[j] = states[current].house[j + 1];
-                                }
-                                states[current].houseCount--;
-                                break;
-                            }
-                        }
-                        Delay_ms(2000);
-                        cleartextxy(STA, 300, STO, 100);
-                        // 重置地块
-                        map[soldPos][0] = -1;
-                        map[soldPos][1] = 0;
-                        clear_house(x_axis[soldPos], y_axis[soldPos]);//清空该地块图片
-                    }
-
+                    Bankruptcy(current);
+                   
                     // 循环结束后判断是否破产
-                    if (states[current].money < 0) {
-                        WriteWord(195, 300, "玩家 %d 破产出局！\n", current + 1);
-                        states[current].Ingame = 0;
-                        // 将该玩家的地块全部释放
-                        for (int i = 0; i < 26; i++) {
-                            if (map[i][0] == current) {
-                                map[i][0] = -1;
-                                map[i][1] = 0;
-                                clear_house(x_axis[i], y_axis[i]);//清空该地块图片
-                            }
-                        }
-                        Delay_ms(2000);
-                        cleartextxy(STA, 300, STO, 100);
-                        //补充：清除玩家图形
-                        int pos = states[current].position;//获取玩家位置
-                        putimage(x_axis[pos], y_axis[pos], &whitebg);
-                    }
+                    ClearPlayer(current);
                 }
                 choice = 4; // 移动后自动结束回合
                 break;
             }
+
             case 2:
                 ShowStatus(current);
                 break;
@@ -559,24 +476,39 @@ int main()
     }
     return 0;
 }
-void Timer_Init()
+
+void Init()
+{
+    Player_init();
+    Background_init();
+    update_background();
+    House_init();
+    Character_init();
+    Timer_init();
+    mciSendStringA(R"(open "res\Richman.mp3" alias music)", nullptr, 0, nullptr);
+    mciSendStringA("play music repeat", nullptr, 0, nullptr);
+    Map_init();
+    DrawAllCharacters(-1);
+}
+
+void Timer_init()
 {
     last_time = clock();
 }
+
 void Timer_Update()
 {
     clock_t current_time = clock();
     delta_time = (float)(current_time - last_time) / CLOCKS_PER_SEC;
     last_time = current_time;
 }
+
 void Delay_ms(int x)
 {
     Sleep(x);
-
-
     Timer_Update();
-
 }
+
 int Randomint(int range)
 {
     return rand() % range + 1;
@@ -585,6 +517,56 @@ int Randomint(int range)
 int Dice()
 {
     return Randomint(6);
+}
+
+void Bankruptcy(Player current)
+{
+    while (states[current].money < 0 && states[current].houseCount > 0) {
+        WriteWord(195, 350, "当前债务: %d 元\n", -states[current].money);
+        int soldPos = SellHouse(current);
+        if (soldPos == -1) {
+            break; // 用户取消卖房
+        }
+
+        // 从玩家房产列表中移除
+        for (int i = 0; i < states[current].houseCount; i++) {
+            if (states[current].house[i] == soldPos) {
+                // 移动后面的元素覆盖当前位置
+                for (int j = i; j < states[current].houseCount - 1; j++) {
+                    states[current].house[j] = states[current].house[j + 1];
+                }
+                states[current].houseCount--;
+                break;
+            }
+        }
+        Delay_ms(2000);
+        cleartextxy(STA, 300, STO, 100);
+        // 重置地块
+        map[soldPos][0] = -1;
+        map[soldPos][1] = 0;
+        clear_house(x_axis[soldPos], y_axis[soldPos]);//清空该地块图片
+    }
+}
+
+void ClearPlayer(Player current)
+{
+    if (states[current].money < 0) {
+        WriteWord(195, 300, "玩家 %d 破产出局！\n", current + 1);
+        states[current].Ingame = 0;
+        // 将该玩家的地块全部释放
+        for (int i = 0; i < 26; i++) {
+            if (map[i][0] == current) {
+                map[i][0] = -1;
+                map[i][1] = 0;
+                clear_house(x_axis[i], y_axis[i]);//清空该地块图片
+            }
+        }
+        Delay_ms(2000);
+        cleartextxy(STA, 300, STO, 100);
+        //补充：清除玩家图形
+        int pos = states[current].position;//获取玩家位置
+        putimage(x_axis[pos], y_axis[pos], &whitebg);
+    }
 }
 
 int Judge(Player now)
@@ -615,13 +597,10 @@ int Judge(Player now)
     return 0;
 }
 
-Player NextPlayer(Player current)
+Player NextPlayer(Player current) //AI
 {
-    //AI
     return (Player)((current + 1) % 4);
 }
-
-
 
 int SpecialArea(int now)
 {
@@ -660,17 +639,20 @@ void ChanceEvent(Player current)
         Delay_ms(2000);
         cleartextxy(STA, 550, STO, 100);
         break;
+
     case 1: // 赌博失败
         states[current].money -= 2000;
         WriteWord(195, 600, "失去2000元\n");
         Delay_ms(2000);
         cleartextxy(STA, 550, STO, 100);
         break;
+
     case 2: // 无事发生
         WriteWord(195, 600, "无事发生\n");
         Delay_ms(2000);
         cleartextxy(STA, 550, STO, 100);
         break;
+
     case 3: // 给其他玩家钱
     {
         int totalNeeded = 0;
@@ -680,48 +662,48 @@ void ChanceEvent(Player current)
                 totalNeeded += 500;
             }
         }
-
-        if (states[current].money >= totalNeeded) {
-            // 钱够，执行事件
-            for (int i = 0; i < 4; i++) {
-                if (i != current && states[i].Ingame) {
-                    states[current].money -= 500;
-                    states[i].money += 500;
-                    WriteWord(195, 600, "给玩家 %d 500元\n", i + 1);
-                }
+        int bankrupt = 0;
+        if (states[current].money < totalNeeded) bankrupt = 1;
+        for (int i = 0; i < 4; i++) {
+            if (i != current && states[i].Ingame) {
+                states[current].money -= 500;
+                states[i].money += 500;
+                WriteWord(195, 600, "给玩家 %d 500元\n", i + 1);
             }
         }
-        else {
-            WriteWord(195, 600, "你的钱不够，事件取消\n");
+        if(bankrupt) {
+            WriteWord(195, 300, "玩家 %d 资金为负！请变卖房产偿还债务\n", current + 1);
+            Bankruptcy(current);
+            ClearPlayer(current);
         }
     }
     Delay_ms(2000);
     cleartextxy(STA, 550, STO, 100);
     break;
+
     case 4: // 收其他玩家钱
     {
-        int canExecute = 1;
+        int canExecute[4] = { 1, 1, 1, 1 };
+        int now = current;
         // 先检查所有其他玩家是否有足够钱（包含 AI 补位）
         for (int i = 0; i < 4; i++) {
-            if (i != current && states[i].Ingame && states[i].money < 500) {
-                WriteWord(195, 600, "玩家 %d 钱不够，事件取消\n", i + 1);
-                canExecute = 0;
+            if (i != current && states[i].Ingame && states[i].money < 500) 
+                canExecute[i] = 0;
+        }
+        for (int i = 0; i < 4; i++) {
+            if (i != current && states[i].Ingame) {
+                states[i].money -= 500;
+                states[current].money += 500;
+                WriteWord(195, 600, "收到玩家 %d 500元\n", i + 1);
                 Delay_ms(2000);
                 cleartextxy(STA, 550, STO, 100);
-                break;
             }
         }
-
-        if (canExecute) {
-            // 执行事件
-            for (int i = 0; i < 4; i++) {
-                if (i != current && states[i].Ingame) {
-                    states[i].money -= 500;
-                    states[current].money += 500;
-                    WriteWord(195, 600, "收到玩家 %d 500元\n", i + 1);
-                    Delay_ms(2000);
-                    cleartextxy(STA, 550, STO, 100);
-                }
+        for (int i = 0; i < 4; i++) {
+            if (!canExecute[i]) {
+                WriteWord(195, 300, "玩家 %d 资金为负！请变卖房产偿还债务\n", i+1);
+                Bankruptcy(Player(i));
+                ClearPlayer(Player(i));
             }
         }
     }
@@ -740,7 +722,7 @@ void BuyLand(Player current, int pos)
         states[current].houseCount++;
         WriteWord(195, 600, "购买成功！\n");
         FlushBatchDraw();
-        Delay_ms(2000);
+        Delay_ms(1000);
 
         DrawBoardObjects();
         DrawAllCharacters(-1);
@@ -749,8 +731,6 @@ void BuyLand(Player current, int pos)
         WriteWord(195, 600, "金钱不足，购买失败\n");
         FlushBatchDraw();
         Delay_ms(2000);
-
-
     }
     cleartextxy(STA, 550, STO, 100);
 }
@@ -774,7 +754,13 @@ void BuildHouse(Player current, int pos)
 void PayRent(Player current, int pos, int level)
 {
     int owner = map[pos][0];
-    int rent = (level == 1) ? RENT1 : RENT2;
+
+    int rent;
+    switch (level) {
+    case 0: rent = RENT0; break;
+    case 1: rent = RENT1; break;
+    case 2: rent = RENT2; break;
+    }
 
     if (states[current].money >= rent) {
         states[current].money -= rent;
@@ -787,29 +773,7 @@ void PayRent(Player current, int pos, int level)
 
         int debt = rent - states[current].money;
         WriteWord(195, 550, "需要筹集 %d 元\n", debt);
-
-        while (states[current].money < rent && states[current].houseCount > 0) {
-            int soldPos = SellHouse(current);
-            if (soldPos == -1) {
-                break; // 用户取消卖房
-            }
-
-            // 从玩家房产列表中移除
-            for (int i = 0; i < states[current].houseCount; i++) {
-                if (states[current].house[i] == soldPos) {
-                    for (int j = i; j < states[current].houseCount - 1; j++) {
-                        states[current].house[j] = states[current].house[j + 1];
-                    }
-                    states[current].houseCount--;
-                    break;
-                }
-            }
-
-            // 重置地块
-            map[soldPos][0] = -1;
-            map[soldPos][1] = 0;
-            clear_house(x_axis[soldPos], y_axis[soldPos]);//清空该地块图片
-        }
+        Bankruptcy(current);
 
         // 再次检查资金是否足够
         if (states[current].money >= rent) {
@@ -949,6 +913,18 @@ void ShowMap()
 
     printf("=====================\n");
 }
+
+void ShowMoney()
+{
+    printf("\n===== 玩家财富状态 =====\n");
+    printf("Player1: %d 元\n", states[0].money);
+    printf("Player2: %d 元\n", states[1].money);
+    printf("Player3: %d 元\n", states[2].money);
+    printf("Player4: %d 元\n", states[3].money);
+
+    printf("=====================\n");
+}
+
 void DrawBoardObjects()
 {
     for (int i = 0; i < 26; ++i)
@@ -1005,6 +981,7 @@ void DrawBoardObjects()
         }
     }
 }
+
 void DrawAllCharacters(int exclusion = -1)
 {
     // 改为遍历 4 个槽（包含 AI 补位）
@@ -1020,6 +997,7 @@ void DrawAllCharacters(int exclusion = -1)
         putimage(x, y, photo);
     }
 }
+
 void Pause()
 {
     printf("按Enter键继续...");
@@ -1046,6 +1024,23 @@ void House_init()//加载房子图片
     loadimage(&c3ground, "res/c3ground.png", 60, 60);//加载玩家三空地图片
     loadimage(&c4ground, "res/c4ground.png", 60, 60);//加载玩家四空地图片
 
+}
+
+void Map_init() {
+    // 初始化地图
+    for (int i = 0; i < 26; i++) {
+        map[i][0] = -1;
+        map[i][1] = 0;
+    }
+    // 标记特殊地块（不能购买）
+    // 0:起点, 6:医院, 13:机会, 19:监狱
+    map[0][0] = -2;  // -2表示特殊地块
+    map[6][0] = -2;
+    map[13][0] = -2;
+    map[19][0] = -2;
+    draw_hospital(x_axis[6], y_axis[6]);// 绘制医院图片
+    draw_jail(x_axis[19], y_axis[19]);// 绘制监狱图片
+    draw_chance(x_axis[13], y_axis[13]);// 绘制机会图片
 }
 
 void draw_house_one(int x, int y)
@@ -1104,6 +1099,36 @@ void draw_c4ground(int x, int y)
     putimage(x, y, &c4ground);//建造玩家四空地
 }
 
+void Player_init()
+{
+    // 初始化玩家状态
+    for (int i = 0; i < 4; i++) {
+        // 默认把真实玩家标记为 Ingame = 1，超出索引的槽位先设为 0
+        states[i].Ingame = (i < num_player) ? 1 : 0;
+        states[i].Injail = 0;
+        states[i].Inhospital = 0;
+        states[i].money = 5000; // 初始资金调整为5000
+        states[i].position = 0;
+        states[i].jailCount = 0;
+        states[i].hospitalCount = 0;
+        states[i].houseCount = 0;
+        states[i].isAI = 0; // 先清 0
+        for (int j = 0; j < 22; j++) states[i].house[j] = -1;
+    }
+
+    // AI 初始化：若 num_player < 4，则用 AI 补位
+    if (num_player != 4)
+    {
+        for (int i = 0; i < num_player; i++) states[i].isAI = 0;
+        for (int i = num_player; i < 4; i++) {
+            states[i].isAI = 1;
+            states[i].Ingame = 1; // AI 补位后也设为在场
+        }
+    }
+    else {
+        for (int i = 0; i < 4; i++) states[i].isAI = 0;
+    }
+}
 
 void Background_init()//加载背景图片
 {
@@ -1168,11 +1193,7 @@ int Move(int i, int before, int step)
         int target_x = x_axis[(before + idx + 1) % 26];
         int target_y = y_axis[(before + idx + 1) % 26];
         //判断是否经过起点(位置0)
-        if (current_pos != 0 && next_pos == 0) {
 
-            states[i].money += 1000;
-
-        }
         a_step(photo, x, y, target_x, target_y, 150, i);
         idx++;
     }
@@ -1223,11 +1244,12 @@ void WriteWord(int x, int y, const char* word, ...) {
 
     settextcolor(RED);
     setbkmode(TRANSPARENT);
-    settextstyle(30, 0, "宋体");
+    settextstyle(25, 0, "宋体");
 
     outtextxy(x, y, temp); // 使用格式化后的字符串
     printf("%s", temp);
 }
+
 void cleartextxy(int x, int y, int width, int height)
 {
     setfillcolor(RGB(167, 229, 240)); // 背景色
