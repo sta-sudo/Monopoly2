@@ -1045,13 +1045,11 @@ void Map_init() {
 
 void draw_house_one(int x, int y)
 {
-    putimage(x, y, &whitebg);//清空本格子区域
     putimage(x, y, &imghouse_one);//建造低级房子
 }
 
 void draw_house_two(int x, int y)
 {
-    putimage(x, y, &whitebg);//清空本格子区域
     putimage(x, y, &imghouse_two);//建造高级房子
 }
 
