@@ -183,7 +183,7 @@ int main()
             cleartextxy(STA, 300, STO, 50);
             current = NextPlayer(current);
             skipped++;
-            if (skipped >= num_player) {
+            if (skipped >= 4) {
                 printf("所有玩家都无法行动\n");
                 Delay_ms(2000);
                 cleartextxy(STA, 300, STO, 50);
@@ -952,30 +952,68 @@ void DrawBoardObjects()
             {
                 switch (map[i][0])
                 {
-                case 0: {
-                    draw_c1ground(x_axis[i], y_axis[i]);
-                    break;
-                }
-                case 1: {
-                    draw_c2ground(x_axis[i], y_axis[i]);
-                    break;
-                }
-                case 2: {
-                    draw_c3ground(x_axis[i], y_axis[i]);
-                    break;
-                }
-                case 3: {
-                    draw_c4ground(x_axis[i], y_axis[i]);
-                    break;
-                }
+                    case 0: {
+                        draw_c1ground(x_axis[i], y_axis[i]);
+                        break;
+                    }
+                    case 1: {
+                        draw_c2ground(x_axis[i], y_axis[i]);
+                        break;
+                    }
+                    case 2: {
+                        draw_c3ground(x_axis[i], y_axis[i]);
+                        break;
+                    }
+                    case 3: {
+                        draw_c4ground(x_axis[i], y_axis[i]);
+                        break;
+                    }
                 }
             }
-            else if (map[i][1] == 1)
+            if (map[i][1] == 1)
             {
+                switch (map[i][0])
+                {
+                    case 0: {
+                        draw_c1ground(x_axis[i], y_axis[i]);
+                        break;
+                    }
+                    case 1: {
+                        draw_c2ground(x_axis[i], y_axis[i]);
+                        break;
+                    }
+                    case 2: {
+                        draw_c3ground(x_axis[i], y_axis[i]);
+                        break;
+                    }
+                    case 3: {
+                        draw_c4ground(x_axis[i], y_axis[i]);
+                        break;
+                    }
+                }
                 draw_house_one(x_axis[i], y_axis[i]);
             }
-            else if (map[i][1] == 2)
+            if (map[i][1] == 2)
             {
+                switch (map[i][0])
+                {
+                    case 0: {
+                        draw_c1ground(x_axis[i], y_axis[i]);
+                        break;
+                    }
+                    case 1: {
+                        draw_c2ground(x_axis[i], y_axis[i]);
+                        break;
+                    }
+                    case 2: {
+                        draw_c3ground(x_axis[i], y_axis[i]);
+                        break;
+                    }
+                    case 3: {
+                        draw_c4ground(x_axis[i], y_axis[i]);
+                        break;
+                    }
+                }
                 draw_house_two(x_axis[i], y_axis[i]);
             }
         }
@@ -1017,12 +1055,12 @@ void House_init()//加载房子图片
     //看到一个图片少加载了，顺便加上
     //
     //
-    loadimage(&whitebg, "res/whitebg.png", 60, 60);//加载白色背景图片
+    loadimage(&whitebg, "res/whitebg.png", 66, 67);//加载白色背景图片
     //新增
-    loadimage(&c1ground, "res/c1ground.png", 60, 60);//加载玩家一空地图片
-    loadimage(&c2ground, "res/c2ground.png", 60, 60);//加载玩家二空地图片
-    loadimage(&c3ground, "res/c3ground.png", 60, 60);//加载玩家三空地图片
-    loadimage(&c4ground, "res/c4ground.png", 60, 60);//加载玩家四空地图片
+    loadimage(&c1ground, "res/c1ground.png", 66, 67);//加载玩家一空地图片
+    loadimage(&c2ground, "res/c2ground.png", 66, 67);//加载玩家二空地图片
+    loadimage(&c3ground, "res/c3ground.png", 66, 67);//加载玩家三空地图片
+    loadimage(&c4ground, "res/c4ground.png", 66, 67);//加载玩家四空地图片
 
 }
 
