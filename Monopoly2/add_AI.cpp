@@ -472,7 +472,7 @@ int main()
         WriteWord(195, 195, "\n按Enter键继续下一回合...");
         Delay_ms(2000);
         cleartextxy(STA, 195, STO, 50);
-        if (!states[current].isAI) getchar(); getchar(); // AI
+        if (!states[current].isAI) getchar(); // AI
     }
     return 0;
 }
