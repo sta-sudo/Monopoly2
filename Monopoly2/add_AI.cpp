@@ -183,7 +183,7 @@ int main()
             cleartextxy(STA, 300, STO, 50);
             current = NextPlayer(current);
             skipped++;
-            if (skipped >= num_player) {
+            if (skipped >= 4) {
                 printf("所有玩家都无法行动\n");
                 Delay_ms(2000);
                 cleartextxy(STA, 300, STO, 50);
